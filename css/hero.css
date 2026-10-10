@@ -1,10 +1,10 @@
 /* =========================================================
-   INDEPENDENT HERO PAGE — collage redesign (site/hero.html) ONLY
+   SITE ENTRY HERO PAGE — collage redesign (site/index.html) ONLY
    Reference-driven composition: painted grassland scene with the
    berry-bonnet cat (baked illustration), HTML speech-bubble CTA,
    shader headline + sub-line overlaid at reference positions.
    Every rule is scoped to .hero-page so nothing here can
-   affect index.html or any other production page.
+   affect home.html or any other production page.
    ========================================================= */
 
 .hero-page{background:#F7EEDA}

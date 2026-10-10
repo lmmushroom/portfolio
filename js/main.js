@@ -64,7 +64,7 @@
   /* ---------- NAV HTML ---------- */
   const NAV = `
   <nav class="nav" id="nav">
-    <a class="brand" href="index.html">
+    <a class="brand" href="home.html">
       <img src="assets/LILA_logo图.jpeg" alt="LILA">
       <span>LILA</span>
     </a>
@@ -107,7 +107,7 @@
       </div>
       <div class="copy">
         <span data-zh="© 2026 LILA · 用真实素材搭建，无 AI 冒充。">© 2026 LILA · Built with real materials, no AI impersonation.</span>
-        <span><a href="index.html" data-zh="回到顶部 ↑">Back to top ↑</a></span>
+        <span><a href="home.html" data-zh="回到顶部 ↑">Back to top ↑</a></span>
       </div>
     </div>
   </footer>`;
@@ -202,7 +202,7 @@
     if(document.body.classList.contains('tape')) initTape();
 
     // intro (home)
-    // The torn-paper opening was removed from index.html (ROUND 2H). It now
+    // The torn-paper opening was removed from home.html (ROUND 2H). It now
     // runs only where an #intro element is actually present AND the page has
     // not opted out with <body data-no-intro>; other pages keep the behaviour.
     if(document.body.classList.contains('home')

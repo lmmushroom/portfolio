@@ -1,7 +1,7 @@
 /* =========================================================================
    LILA — hero-shader.js
-   Native WebGL1 interactive typography for the independent Hero page
-   (site/hero.html). No three.js, no new dependency.
+   Native WebGL1 interactive typography for the site-entry Hero page
+   (site/index.html). No three.js, no new dependency.
 
    Reference: Codrops "Animating Letters with Shaders" (Paola Demichelis).
    Faithful mechanism:
@@ -18,7 +18,7 @@
      · on-demand rendering instead of a permanent rAF loop
 
    The script does nothing unless the page contains [data-hero-shader],
-   so it can never run on index.html or any other page.
+   so it can never run on home.html or any other page.
    ========================================================================= */
 (function(){
   'use strict';
@@ -139,7 +139,7 @@
       ctx.fillText(ln, box.pad, box.pad + i * t.lh + off);
     });
     /* NOTE: the smiley is no longer baked into the shader texture — in the
-       collage redesign it lives at the end of the sub-line (hero.html) so it
+       collage redesign it lives at the end of the sub-line (index.html) so it
        can never cover the illustration. */
 
     ctx.filter = 'none';

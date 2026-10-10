@@ -3,141 +3,49 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LILA — Portfolio · Content · Operations · Research · International</title>
-<meta name="description" content="LILA — a portfolio of content operations, brand research and creative work across cultures.">
+<title>LILA — Content · Operations · Research · International</title>
+<meta name="description" content="Hi, I'm Lila — content, operations and research across cultures, turning evidence into stories that travel.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/hero.css">
 </head>
-<body class="home" data-page="home" data-no-intro>
+<!--
+  SITE ENTRY — hero collage (references: design references/hero).
+  · Served at the site root (index.html), so visiting / lands on this hero first.
+  · The main site now lives at home.html; the speech bubble below is the CTA
+    that takes the visitor there.
+  · No #intro element, so the torn-paper opening never runs on this page.
+  · The headline is fixed at "Hi, I'm Lila" + smiley in BOTH languages:
+    it carries no data-zh / data-zh-html attribute, so the site's bilingual
+    engine cannot overwrite it.
+  · The shader stage keeps the real <h1> in the DOM as accessible / fallback
+    text; the WebGL canvas overlays it only when the shader is live.
+  · Speech bubble = the "enter the site" CTA (link to home.html), text kept
+    in Chinese exactly as both target images show it.
+-->
+<body class="hero-page" data-page="hero">
 
 <div id="nav-root"></div>
 
 <main>
-  <!-- HERO — ticket collage (target-en / target-ch) -->
-  <section class="home-hero">
-    <div class="ticket reveal">
-      <div class="ticket-art" aria-hidden="true">
-        <img src="assets/hero-swirl.jpg" alt="">
-      </div>
-      <div class="ticket-panel">
-        <h1 class="reveal" data-zh-html="能跨越文化<br>的内容。">Content that<br>travels across<br>cultures.</h1>
-        <p class="ticket-tagline reveal" data-zh-html="我在 <b>内容、运营与研究</b> 的交汇处工作——把证据变成故事，把故事变成增长。">content, operations<br>and research</p>
-        <a class="ticket-mushroom reveal" href="#explore" aria-label="Explore my work">
-          <img src="assets/hero-mushroom.png" alt="">
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- EXPLORE / TOC -->
-  <section class="section" id="explore">
-    <div class="wrap">
-      <div class="toc-board reveal">
-        <div class="toc-head">
-          <div class="eyebrow" data-zh="目录">Table of contents</div>
-          <h2 class="title" data-zh="从哪儿看起">Where to look</h2>
+  <section class="hero-scene">
+    <div class="scene-fit">
+      <a class="hero-bubble" href="home.html" lang="zh-CN">点此进入主站吧</a>
+      <div class="hero-copy">
+        <div class="hero-stage" id="stage" data-hero-shader>
+          <h1 class="hero-title" id="title">Hi, <br>I'm <br>Lila</h1>
+          <canvas id="hero-gl" aria-hidden="true"></canvas>
         </div>
-        <div class="toc-grid">
-          <a class="toc-card" href="experience.html">
-            <span class="num">01</span>
-            <h3 data-zh="经历">Experience</h3>
-            <p data-zh="内容运营，外加一个苏超赛季。">Content operations &amp; a Jiangsu Super League season.</p>
-            <span class="go" data-zh="打开 →">Open →</span>
-            <img class="deco deco-cat" src="assets/toc-cat.png" alt="" aria-hidden="true">
-          </a>
-          <a class="toc-card" href="cases.html">
-            <span class="num">02</span>
-            <h3 data-zh="案例研究">Case Studies</h3>
-            <p data-zh="Roborock 与 PETLIBRO——把研究变成出海打法。">Roborock &amp; PETLIBRO — research turned into GTM.</p>
-            <span class="go" data-zh="打开 →">Open →</span>
-          </a>
-          <a class="toc-card" href="content.html">
-            <span class="num">03</span>
-            <h3 data-zh="内容实践">Content Practice</h3>
-            <p data-zh="聊个天气吧、小红书、Mossy Brew。">Weather talk show, Xiaohongshu, Mossy Brew.</p>
-            <span class="go" data-zh="打开 →">Open →</span>
-            <img class="deco deco-doodle" src="assets/toc-doodle.png" alt="" aria-hidden="true">
-          </a>
-          <a class="toc-card" href="archive.html">
-            <span class="num">04</span>
-            <h3 data-zh="创意档案">Creative Archive</h3>
-            <p data-zh="影像、编辑设计、摄影与视觉实验。">Film, editorial, photography &amp; visual play.</p>
-            <span class="go" data-zh="打开 →">Open →</span>
-            <img class="deco deco-mint" src="assets/toc-stamp-mint.png" alt="" aria-hidden="true">
-            <img class="deco deco-green" src="assets/toc-stamp-green.png" alt="" aria-hidden="true">
-          </a>
-          <a class="toc-card" href="about.html">
-            <span class="num">05</span>
-            <h3 data-zh="关于">About</h3>
-            <p data-zh="我是谁、学什么、在意什么。">Who I am, what I study, what I care about.</p>
-            <span class="go" data-zh="打开 →">Open →</span>
-            <img class="deco deco-postcard" src="assets/toc-postcard.png" alt="" aria-hidden="true">
-          </a>
-        </div>
+        <p class="hero-sub" data-zh-html="我在 <b>内容、运营与研究</b> 的交汇处工作——<br>把证据变成故事，把故事变成增长。">content, operations and research<span class="smile" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17.4" fill="none" stroke="currentColor" stroke-width="2.6"/><circle cx="14" cy="16.6" r="1.9" fill="currentColor"/><circle cx="26" cy="16.6" r="1.9" fill="currentColor"/><path d="M13.2 24.4 C16 29 24 29 26.8 24.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span></p>
       </div>
-    </div>
-  </section>
-
-  <!-- MY APPROACH — "我的方法 / 六个步骤" botanical framed note cards -->
-  <section class="section alt" id="approach">
-    <div class="method-board reveal">
-      <div class="method-head">
-        <div class="eyebrow" data-zh="我的方法">My approach</div>
-        <h2 class="title" data-zh="六个步骤，一以贯之">Six steps, always the same shape</h2>
-      </div>
-      <div class="approach">
-        <div class="step"><div class="n">01</div><h4 data-zh="观察">Observe</h4><p data-zh="观察行业、平台与人。">Watch the field, the platform, the people.</p></div>
-        <div class="step"><div class="n">02</div><h4 data-zh="提问">Question</h4><p data-zh="什么是真的？什么只是假设？">What is actually true? What is assumed?</p></div>
-        <div class="step"><div class="n">03</div><h4 data-zh="验证">Verify</h4><p data-zh="证据优先于观点——先用公开数据。">Evidence over opinion — public data first.</p></div>
-        <div class="step"><div class="n">04</div><h4 data-zh="转化">Convert</h4><p data-zh="把洞察变成内容，把内容变成行动。">Insight into content, content into action.</p></div>
-        <div class="step"><div class="n">05</div><h4 data-zh="发布">Publish</h4><p data-zh="在受众已经活跃的地方发布。">Ship where the audience already lives.</p></div>
-        <div class="step"><div class="n">06</div><h4 data-zh="复盘">Review</h4><p data-zh="衡量、学习，再回到观察。">Measure, learn, loop back to observe.</p></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FEATURED WORK -->
-  <section class="section">
-    <div class="wrap">
-      <div class="eyebrow reveal" data-zh="精选作品">Featured work</div>
-      <h2 class="title reveal" data-zh="两个值得一看的案例">Two cases worth a look</h2>
-      <div class="feat-grid">
-        <a class="feat-card reveal" href="cases-roborock.html">
-          <div class="img" style="background-image:url('assets/roborock_产品主视图.jpg')"></div>
-          <div class="veil"></div>
-          <div class="body">
-            <span class="k" data-zh="案例 01">Case 01</span>
-            <h3>Roborock</h3>
-            <p data-zh="从区域市场差异，到一套全球化 GTM 方法论。">From regional market differences to a global GTM playbook.</p>
-          </div>
-        </a>
-        <a class="feat-card reveal" href="cases-petlibro.html">
-          <div class="img" style="background-image:url('assets/petlibro-granary产品主视图.webp')"></div>
-          <div class="veil"></div>
-          <div class="body">
-            <span class="k" data-zh="案例 02">Case 02</span>
-            <h3>PETLIBRO</h3>
-            <p data-zh="从内容研究，到以创作者为驱动的策略。">From content research to a creator-led strategy.</p>
-          </div>
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- CONTACT -->
-  <section class="contact">
-    <div class="wrap">
-      <div class="eyebrow" style="color:var(--kraft)" data-zh="保持联系">Let's connect</div>
-      <h2 class="reveal" data-zh="正在寻找面向海外市场的运营与内容岗位。">Currently exploring content & ops roles across borders.</h2>
-      <p class="lead reveal" data-zh="如果你正在做一件需要细心倾听、并以稳妥方式打磨内容的事，我很乐意聊聊。">If you're building something that needs a careful ear and a steady hand with content, I'd love to talk.</p>
-      <p class="reveal"><a class="mail" href="mailto:glimmerflow@163.com">glimmerflow@163.com</a></p>
     </div>
   </section>
 </main>
 
 <div id="footer-root"></div>
 <script src="js/main.js"></script>
+<script src="js/hero-shader.js"></script>
 </body>
 </html>
