@@ -1,0 +1,20 @@
+# Cloudflare static-asset upload filter (gitignore syntax).
+#
+# The asset directory is this repository ROOT, and unlike Pages, Cloudflare
+# Workers does NOT automatically exclude .git. Without the entries below the
+# build also publishes .git/ — ~300 MB of history that still holds the
+# original, uncompressed video masters (59/47/41/30 MB). Any single file
+# over 25 MiB aborts the deploy with "Asset too large".
+#
+# Official reference:
+# https://developers.cloudflare.com/workers/static-assets/migrate-from-pages
+#   "...you can create an .assetsignore file in your project's static asset
+#    directory" -> **/node_modules  **/.DS_Store  **/.git
+
+.git
+**/.git
+**/.git/**
+
+**/node_modules
+**/.DS_Store
+Thumbs.db
