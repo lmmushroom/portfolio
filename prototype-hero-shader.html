@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROTOTYPE — Hero Shader (Round 2H · Phase 2)</title>
+<meta name="description" content="Isolated prototype: native WebGL1 hero text displacement + shadow, adapted from the Codrops Animated Letters / Shadow shader. Not part of the production site.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- read-only reuse of the production stylesheet (typography + tokens). Never modified. -->
+<link rel="stylesheet" href="css/style.css">
+<style>
+  /* =========================================================
+     PROTOTYPE-ONLY STYLES — scoped to this file.
+     Nothing here is loaded by any production page.
+     ========================================================= */
+  .proto-meta{
+    display:flex;align-items:center;justify-content:space-between;gap:1rem;
+    padding-bottom:1.1rem;margin-bottom:2.2rem;border-bottom:1px solid var(--line);
+  }
+  .proto-tag{
+    font-size:.68rem;font-weight:600;letter-spacing:.2em;text-transform:uppercase;
+    color:var(--kraft-deep);
+  }
+  .proto-meta .lang{
+    display:flex;align-items:center;gap:.55rem;
+    border:1px solid var(--line-strong);border-radius:999px;padding:.3rem .8rem;
+  }
+  .proto-meta .lang .lb{
+    font-size:.62rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .proto-meta .lang button{
+    background:none;border:0;padding:.15em .3em;font:inherit;font-size:.86rem;font-weight:600;
+    letter-spacing:.04em;color:rgba(28,26,23,.4);cursor:pointer;transition:color .2s;
+  }
+  .proto-meta .lang button:hover{color:var(--ink)}
+  .proto-meta .lang button.active{
+    color:var(--ink);text-decoration:underline;text-underline-offset:.28em;
+    text-decoration-thickness:1.5px;text-decoration-color:var(--kraft);
+  }
+  .proto-meta .lang i{color:var(--line-strong);font-style:normal}
+
+  /* the shader stage: the real <h1> stays in flow and keeps the layout identical
+     with or without WebGL; the canvas overlays it. */
+  .gl-stage{position:relative}
+  .gl-stage h1{margin:0}
+  #hero-gl{
+    position:absolute;left:0;top:0;width:100%;height:100%;
+    pointer-events:none;display:none;
+  }
+  .gl-on #hero-gl{display:block}
+  /* when the shader is live the canvas carries the visual; the h1 stays in the
+     accessibility tree (opacity, not display/visibility). */
+  .gl-on .gl-title{opacity:0}
+  .gl-title .smile{
+    display:inline-block;width:.78em;height:.78em;vertical-align:-.06em;margin-left:.24em;
+  }
+  .gl-title .smile svg{width:100%;height:100%;display:block;overflow:visible}
+
+  .proto-status{
+    margin:2.6rem 0 0;padding-top:.9rem;border-top:1px solid var(--line);
+    font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);
+  }
+  @media(max-width:620px){ .proto-meta{flex-direction:column;align-items:flex-start;gap:.6rem} }
+</style>
+</head>
+<body class="proto-hero">
+
+<section class="home-hero wrap">
+  <div class="proto-meta">
+    <span class="proto-tag">Prototype · Hero shader · Round 2H Phase 2</span>
+    <span class="lang">
+      <span class="lb">Language</span>
+      <button type="button" data-pl="en" class="active">EN</button><i>/</i><button type="button" data-pl="zh">中文</button>
+    </span>
+  </div>
+
+  <div class="hero-grid">
+    <div class="hero-main">
+      <div class="hi">Lei Tong · LILA</div>
+      <div class="gl-stage" id="stage">
+        <h1 class="gl-title" id="title" data-zh-html="能跨越文化<br>的内容。">Hi, I'm Lila</h1>
+        <canvas id="hero-gl" aria-hidden="true"></canvas>
+      </div>
+      <p class="statement">I work at the seam of <b>content, operations and research</b> — turning evidence into stories, and stories into growth.</p>
+    </div>
+  </div>
+
+  <p class="proto-status" id="status">…</p>
+</section>
+
+<script>
+/* =========================================================================
+   PROTOTYPE — native WebGL1 hero-text displacement + shadow.
+   Reference: Codrops "Animating Letters with Shaders" (Paola Demichelis).
+   Faithful mechanism, re-implemented without three.js:
+     · glyph texture (canvas-generated from the live bilingual headline)
+     · 100x100 subdivided plane, per-vertex Z displacement around the pointer
+     · easeInOutCubic falloff inside a fixed radius
+     · second plane with a pre-blurred texture whose ALPHA is remapped by the
+       same distance → the shadow lifts where the letters rise
+   Differences from the reference (deliberate):
+     · flat, horizontal composition (no 45° rotation) per the site's Swiss grid
+     · the reference's orthographic camera is replaced by a mild perspective so
+       the Z displacement is visible head-on (an ortho head-on camera cannot
+       show any Z movement at all)
+     · the bump decays back to flat on pointer-leave (reference freezes it)
+     · on-demand rendering instead of a permanent rAF loop
+   No production file is touched. No dependency is added.
+   ========================================================================= */
+(function(){
+  'use strict';
+
+  /* ---------------- content (EN headline is fixed by the brief; the Chinese
+       line is the site's real hero headline, verbatim) ---------------- */
+  const LINES = { en: ["Hi, I'm Lila"], zh: ["能跨越文化", "的内容。"] };
+  const SMILE_SVG =
+    '<span class="smile" aria-hidden="true"><svg viewBox="0 0 40 40">' +
+    '<circle cx="20" cy="20" r="17.4" fill="none" stroke="currentColor" stroke-width="2.6"/>' +
+    '<circle cx="14" cy="16.6" r="1.9" fill="currentColor"/>' +
+    '<circle cx="26" cy="16.6" r="1.9" fill="currentColor"/>' +
+    '<path d="M13.2 24.4 C16 29 24 29 26.8 24.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>' +
+    '</svg></span>';
+
+  /* ---------------- tuning ---------------- */
+  const SEG        = 100;    // plane subdivisions (reference uses 100x100)
+  const FOV_DEG    = 32;     // mild perspective, only to make Z visible
+  const AMP_FRAC   = 0.11;   // max displacement, as a fraction of camera distance
+  const RADIUS_FRAC= 0.22;   // influence radius, as a fraction of plane width
+  const SHADOW_OFF = 7;      // px: static drop of the shadow plane
+  const SHADOW_A   = 0.34;   // shadow opacity at rest
+  const BLUR_FRAC  = 0.085;  // blur radius, fraction of font size
+  const EASE_POS   = 0.22;   // pointer follow
+  const EASE_STR   = 0.16;   // bump rise
+  const EASE_REL   = 0.10;   // decay on leave
+
+  const stage  = document.getElementById('stage');
+  const title  = document.getElementById('title');
+  const canvas = document.getElementById('hero-gl');
+  const statusEl = document.getElementById('status');
+
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const NO_HOVER = window.matchMedia('(hover: none)').matches;
+  const DEBUG_READBACK = /[?&]debug=1/.test(location.search);
+  const FORCE_FALLBACK = /[?&]nowebgl=1/.test(location.search);
+
+
+  /* ---------------- language ----------------
+     Deterministic sources, in priority order:
+       1. ?lang=zh | ?lang=en   (URL override — for testing)
+       2. the EN / 中文 buttons in this page
+       3. localStorage['lila-lang'] (the production site's own key)
+     Whatever the source, the SAME function drives both the DOM <h1> and the
+     canvas texture, so they can never disagree.
+     ------------------------------------------------------------ */
+  function urlLang(){
+    const m = /[?&]lang=(zh|en)\b/.exec(location.search);
+    return m ? m[1] : null;
+  }
+  let lang = urlLang()
+    || (function(){ try { return localStorage.getItem('lila-lang') === 'zh' ? 'zh' : 'en'; } catch(e){ return 'en'; } })();
+
+  function setLang(l){
+    if(l !== 'en' && l !== 'zh') return;
+    lang = l;
+    renderTitle();
+    build();            // regenerate the texture so the canvas matches the DOM
+    setStatus();
+  }
+  function renderTitle(){
+    const lines = LINES[lang];
+    title.innerHTML = lines.join('<br>') + SMILE_SVG;
+    document.documentElement.lang = (lang === 'zh') ? 'zh-CN' : 'en';
+    document.querySelectorAll('[data-pl]').forEach(b => {
+      const on = b.getAttribute('data-pl') === lang;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-pl]');
+    if(!b) return;
+    setLang(b.getAttribute('data-pl'));
+  });
+  // follow the production site's language if it changes in another tab
+  window.addEventListener('storage', e => {
+    if(e.key === 'lila-lang' && !urlLang()) setLang(e.newValue === 'zh' ? 'zh' : 'en');
+  });
+  // and the production engine's own event, if this prototype is ever embedded
+  window.addEventListener('lila:lang', e => { if(!urlLang()) setLang(e.detail && e.detail.lang); });
+  renderTitle();
+
+  /* ---------------- font metrics → canvas texture ---------------- */
+  function typeStyle(){
+    const cs = getComputedStyle(title);
+    return {
+      family: cs.fontFamily,
+      weight: cs.fontWeight || '600',
+      style:  cs.fontStyle || 'normal',
+      size:   parseFloat(cs.fontSize) || 48,
+      lh:     (cs.lineHeight && cs.lineHeight !== 'normal') ? parseFloat(cs.lineHeight) : (parseFloat(cs.fontSize) || 48) * 1.02,
+      ls:     cs.letterSpacing || 'normal',
+      color:  cs.color || '#1C1A17'
+    };
+  }
+
+  function supportsCanvasFilter(){
+    const c = document.createElement('canvas').getContext('2d');
+    if(!('filter' in c)) return false;
+    c.filter = 'blur(2px)';
+    return c.filter && c.filter !== 'none';
+  }
+  const HAS_FILTER = supportsCanvasFilter();
+
+  // draws the headline + smiley; opt = {mode:'ink'|'shadow', ox, oy, alpha, keep}
+  function drawContent(ctx, t, box, opt){
+    opt = opt || {};
+    const mode = opt.mode || 'ink';
+    const D  = t.size * 0.78;                 // smiley box = .78em
+    const dpr = box.dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, (opt.ox || 0) * dpr, (opt.oy || 0) * dpr);
+    if(!opt.keep) ctx.clearRect(-Math.abs(opt.ox || 0) - 4, -Math.abs(opt.oy || 0) - 4,
+                                box.cssW + 8, box.cssH + 8);
+    ctx.font = t.style + ' ' + t.weight + ' ' + t.size + 'px ' + t.family;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    if('letterSpacing' in ctx) ctx.letterSpacing = (t.ls === 'normal') ? '0px' : t.ls;
+    if('fontKerning' in ctx) ctx.fontKerning = 'normal';
+
+    const lines = LINES[lang];
+    const m = ctx.measureText('Hg');
+    const A = m.fontBoundingBoxAscent  || t.size * 0.8;
+    const Dd= m.fontBoundingBoxDescent || t.size * 0.2;
+    const off = (t.lh - (A + Dd)) / 2 + A;    // CSS inline-box baseline centering
+
+    if(mode === 'shadow'){
+      ctx.fillStyle = 'rgba(28,26,23,1)';
+      ctx.strokeStyle = 'rgba(28,26,23,1)';
+      if(HAS_FILTER) ctx.filter = 'blur(' + (t.size * BLUR_FRAC).toFixed(2) + 'px)';
+      ctx.globalAlpha = (opt.alpha != null) ? opt.alpha : 0.95;
+    } else {
+      ctx.fillStyle = t.color;
+      ctx.strokeStyle = t.color;
+      ctx.globalAlpha = (opt.alpha != null) ? opt.alpha : 1;
+    }
+
+    lines.forEach((ln, i) => {
+      ctx.fillText(ln, box.pad, box.pad + i * t.lh + off);
+    });
+
+    // smiley: appended to the last line, same optical size in both languages
+    const li = lines.length - 1;
+    const lw = ctx.measureText(lines[li]).width;
+    const cx = box.pad + lw + t.size * 0.24 + D / 2;
+    const cy = box.pad + li * t.lh + t.lh / 2;
+    const r  = D / 2;
+    ctx.lineWidth = Math.max(1.4, D * 0.065);
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(cx, cy, r * 0.87, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx - r * 0.30, cy - r * 0.175, r * 0.095, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx + r * 0.30, cy - r * 0.175, r * 0.095, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.34, cy + r * 0.22);
+    ctx.quadraticCurveTo(cx, cy + r * 0.62, cx + r * 0.34, cy + r * 0.22);
+    ctx.stroke();
+
+    ctx.filter = 'none';
+    ctx.globalAlpha = 1;
+    if('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  }
+
+  function measureBlock(t){
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = t.style + ' ' + t.weight + ' ' + t.size + 'px ' + t.family;
+    if('letterSpacing' in c) c.letterSpacing = (t.ls === 'normal') ? '0px' : t.ls;
+    const lines = LINES[lang];
+    let w = 0;
+    lines.forEach(l => { w = Math.max(w, c.measureText(l).width); });
+    const D = t.size * 0.78;
+    w = Math.max(w, c.measureText(lines[lines.length - 1]).width + t.size * 0.24 + D);
+    return { w: w, h: lines.length * t.lh };
+  }
+
+  /* ---------------- WebGL ---------------- */
+  const VERT_TEXT = [
+    'attribute vec2 aPos;',
+    'uniform mat4 uProj, uView;',
+    'uniform vec2 uPlane, uCenter, uDisp;',
+    'uniform float uRadius, uAmp;',
+    'varying vec2 vUv; varying float vDist;',
+    'float easeInOutCubic(float x){ return x < 0.5 ? 4.0*x*x*x : 1.0 - pow(-2.0*x + 2.0, 3.0)/2.0; }',
+    'void main(){',
+    '  vUv = aPos * 0.5 + 0.5;',
+    '  vec3 p = vec3(uCenter + aPos * 0.5 * uPlane, 0.0);',
+    '  float d = distance(p.xy, uDisp);',
+    '  vDist = d;',
+    '  float t = 1.0 - clamp(d / uRadius, 0.0, 1.0);',
+    '  p.z += easeInOutCubic(t) * uAmp;',
+    '  gl_Position = uProj * uView * vec4(p, 1.0);',
+    '}'
+  ].join('\n');
+
+  const FRAG_TEXT = [
+    'precision mediump float;',
+    'uniform sampler2D uTex; uniform float uOpacity;',
+    'varying vec2 vUv;',
+    'void main(){',
+    '  vec4 c = texture2D(uTex, vec2(vUv.x, 1.0 - vUv.y));',
+    '  gl_FragColor = vec4(c.rgb, c.a * uOpacity);',
+    '}'
+  ].join('\n');
+
+  const VERT_SHADOW = [
+    'attribute vec2 aPos;',
+    'uniform mat4 uProj, uView;',
+    'uniform vec2 uPlane, uCenter, uDisp, uOffset;',
+    'varying vec2 vUv; varying float vDist;',
+    'void main(){',
+    '  vUv = aPos * 0.5 + 0.5;',
+    '  vec3 p = vec3(uCenter + aPos * 0.5 * uPlane, 0.0);',
+    '  vDist = distance(p.xy, uDisp);',
+    '  p.xy += uOffset;',
+    '  gl_Position = uProj * uView * vec4(p, 1.0);',
+    '}'
+  ].join('\n');
+
+  const FRAG_SHADOW = [
+    'precision mediump float;',
+    'uniform sampler2D uTex; uniform float uRadius, uOpacity, uStrength;',
+    'varying vec2 vUv; varying float vDist;',
+    'void main(){',
+    '  vec4 c = texture2D(uTex, vec2(vUv.x, 1.0 - vUv.y));',
+    // faithful to the reference: alpha -> 0 at the bump centre, full at the rim
+    '  float k = mix(1.0, clamp(vDist / uRadius, 0.0, 1.0), uStrength);',
+    '  gl_FragColor = vec4(c.rgb, c.a * k * uOpacity);',
+    '}'
+  ].join('\n');
+
+  let gl = null, progText = null, progShadow = null, buf = null, idxCount = 0;
+  let texInk = null, texShadow = null;
+  let box = null;                       // {cssW,cssH,pad,dpr,planeW,planeH}
+  const disp  = { x: 0, y: 0 };         // current (world px, stage-centre origin)
+  const tgt   = { x: 0, y: 0 };
+  let str = 0, tgtStr = 0;
+  let raf = 0;
+
+  function compile(type, src){
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) || 'shader compile failed');
+    return s;
+  }
+  function program(vs, fs){
+    const p = gl.createProgram();
+    gl.attachShader(p, compile(gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p);
+    if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p) || 'link failed');
+    const u = {};
+    const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for(let i = 0; i < n; i++){ const info = gl.getActiveUniform(p, i); u[info.name] = gl.getUniformLocation(p, info.name); }
+    return { p: p, u: u };
+  }
+
+  function initGL(){
+    gl = canvas.getContext('webgl', { antialias: true, alpha: true, depth: false, preserveDrawingBuffer: DEBUG_READBACK })
+      || canvas.getContext('experimental-webgl', { antialias: true, alpha: true, depth: false, preserveDrawingBuffer: DEBUG_READBACK });
+    if(!gl) return false;
+    progText   = program(VERT_TEXT, FRAG_TEXT);
+    progShadow = program(VERT_SHADOW, FRAG_SHADOW);
+
+    // 100 x 100 grid (reference density); Uint16-safe index count
+    const S = SEG, verts = new Float32Array((S + 1) * (S + 1) * 2);
+    let k = 0;
+    for(let y = 0; y <= S; y++) for(let x = 0; x <= S; x++){
+      verts[k++] = (x / S) * 2 - 1; verts[k++] = (y / S) * 2 - 1;
+    }
+    const idx = new Uint16Array(S * S * 6);
+    let m = 0;
+    for(let y = 0; y < S; y++) for(let x = 0; x < S; x++){
+      const a = y * (S + 1) + x, b = a + 1, c = a + S + 1, d = c + 1;
+      idx[m++] = a; idx[m++] = b; idx[m++] = c;
+      idx[m++] = b; idx[m++] = d; idx[m++] = c;
+    }
+    idxCount = idx.length;
+    buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+    const ibuf = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+
+    texInk    = gl.createTexture();
+    texShadow = gl.createTexture();
+    [texInk, texShadow].forEach(t => {
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    });
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    return true;
+  }
+
+  function upload(tex, cv){
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, cv);
+  }
+
+  function perspective(fovyDeg, aspect){
+    const f = 1 / Math.tan(fovyDeg * Math.PI / 360), near = 1, far = 20000;
+    const nf = 1 / (near - far);
+    return new Float32Array([
+      f / aspect, 0, 0, 0,
+      0, f, 0, 0,
+      0, 0, (far + near) * nf, -1,
+      0, 0, 2 * far * near * nf, 0
+    ]);
+  }
+  function view(distance){
+    return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,-distance,1]);
+  }
+
+  /* ---------------- build / rebuild (textures + geometry sizing) ---------------- */
+  let baked = null;                     // {lang, lines} actually uploaded to the GPU
+  function build(){
+    if(!gl){ pendingBuild = true; return; }
+    pendingBuild = false;
+    const t = typeStyle();
+    const rect = stage.getBoundingClientRect();
+    const blur = t.size * BLUR_FRAC;
+    const pad = Math.max(t.size * 0.34, blur * 2.6, 22);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    let cssW = Math.max(1, Math.round(rect.width));
+    let cssH = Math.max(1, Math.round(rect.height));
+    let scale = 1;
+    const maxDim = 2048;
+    while((cssW + pad * 2) * dpr * scale > maxDim || (cssH + pad * 2) * dpr * scale > maxDim) scale *= 0.9;
+    const effDpr = dpr * scale;
+
+    box = { cssW: cssW, cssH: cssH, pad: pad, dpr: effDpr,
+            planeW: cssW + pad * 2, planeH: cssH + pad * 2 };
+
+    // backing store
+    canvas.width  = Math.max(1, Math.round(cssW * effDpr));
+    canvas.height = Math.max(1, Math.round(cssH * effDpr));
+    gl.viewport(0, 0, canvas.width, canvas.height);
+
+    const bw = Math.max(1, Math.round(box.planeW * effDpr));
+    const bh = Math.max(1, Math.round(box.planeH * effDpr));
+
+    const ink = document.createElement('canvas'); ink.width = bw; ink.height = bh;
+    drawContent(ink.getContext('2d'), t, box, 'ink');
+    const sh = document.createElement('canvas'); sh.width = bw; sh.height = bh;
+    if(HAS_FILTER){
+      drawContent(sh.getContext('2d'), t, box, { mode: 'shadow' });
+    } else {
+      // no ctx.filter (older Safari): fake the blur with stacked offset draws
+      const c = sh.getContext('2d');
+      const R = Math.max(2, Math.round(blur * 0.6));
+      for(let i = 0; i < 12; i++){
+        const a = i / 12 * Math.PI * 2;
+        drawContent(c, t, box, { mode: 'shadow', ox: Math.cos(a) * R, oy: Math.sin(a) * R,
+                                 alpha: 0.085, keep: true });
+      }
+    }
+    upload(texInk, ink);
+    upload(texShadow, sh);
+    baked = { lang: lang, lines: LINES[lang].slice() };
+    draw();
+  }
+
+  /* ---------------- draw ---------------- */
+  function draw(){
+    if(!gl || !box) return;
+    const aspect = canvas.width / canvas.height;
+    const proj = perspective(FOV_DEG, aspect);
+    // camera distance chosen so the z = 0 plane maps 1:1 onto canvas pixels
+    const f = 1 / Math.tan(FOV_DEG * Math.PI / 360);
+    const dist = f * box.cssH / 2;
+    const vw = view(dist);
+    const amp = AMP_FRAC * dist * str;
+    const radius = Math.max(70, Math.min(260, RADIUS_FRAC * box.planeW));
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+
+    // ---- shadow plane (drawn first) ----
+    gl.useProgram(progShadow.p);
+    const a1 = gl.getAttribLocation(progShadow.p, 'aPos');
+    gl.enableVertexAttribArray(a1);
+    gl.vertexAttribPointer(a1, 2, gl.FLOAT, false, 0, 0);
+    gl.uniformMatrix4fv(progShadow.u.uProj, false, proj);
+    gl.uniformMatrix4fv(progShadow.u.uView, false, vw);
+    gl.uniform2f(progShadow.u.uPlane, box.planeW, box.planeH);
+    gl.uniform2f(progShadow.u.uCenter, 0, 0);
+    gl.uniform2f(progShadow.u.uDisp, disp.x, disp.y);
+    gl.uniform2f(progShadow.u.uOffset, SHADOW_OFF * 0.35, -SHADOW_OFF);
+    gl.uniform1f(progShadow.u.uRadius, radius);
+    gl.uniform1f(progShadow.u.uOpacity, SHADOW_A);
+    gl.uniform1f(progShadow.u.uStrength, str);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texShadow);
+    gl.uniform1i(progShadow.u.uTex, 0);
+    gl.drawElements(gl.TRIANGLES, idxCount, gl.UNSIGNED_SHORT, 0);
+
+    // ---- glyph plane ----
+    gl.useProgram(progText.p);
+    const a2 = gl.getAttribLocation(progText.p, 'aPos');
+    gl.enableVertexAttribArray(a2);
+    gl.vertexAttribPointer(a2, 2, gl.FLOAT, false, 0, 0);
+    gl.uniformMatrix4fv(progText.u.uProj, false, proj);
+    gl.uniformMatrix4fv(progText.u.uView, false, vw);
+    gl.uniform2f(progText.u.uPlane, box.planeW, box.planeH);
+    gl.uniform2f(progText.u.uCenter, 0, 0);
+    gl.uniform2f(progText.u.uDisp, disp.x, disp.y);
+    gl.uniform1f(progText.u.uRadius, radius);
+    gl.uniform1f(progText.u.uAmp, amp);
+    gl.uniform1f(progText.u.uOpacity, 1);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texInk);
+    gl.uniform1i(progText.u.uTex, 0);
+    gl.drawElements(gl.TRIANGLES, idxCount, gl.UNSIGNED_SHORT, 0);
+  }
+
+  /* ---------------- on-demand loop (runs only while something moves) ---------- */
+  function frame(){
+    raf = 0;
+    disp.x += (tgt.x - disp.x) * EASE_POS;
+    disp.y += (tgt.y - disp.y) * EASE_POS;
+    str += (tgtStr - str) * (tgtStr > str ? EASE_STR : EASE_REL);
+    const settled = Math.abs(tgtStr - str) < 0.002 &&
+                    Math.hypot(tgt.x - disp.x, tgt.y - disp.y) < 0.4;
+    if(settled){ str = tgtStr; disp.x = tgt.x; disp.y = tgt.y; }
+    draw();
+    if(!settled) raf = requestAnimationFrame(frame);
+  }
+  function kick(){ if(!raf) raf = requestAnimationFrame(frame); }
+
+  /* ---------------- pointer ---------------- */
+  function point(e){
+    const r = canvas.getBoundingClientRect();
+    tgt.x = (e.clientX - r.left) - r.width / 2;
+    tgt.y = r.height / 2 - (e.clientY - r.top);
+    tgtStr = 1;
+    kick();
+  }
+  function release(){ tgtStr = 0; kick(); }
+
+  /* ---------------- boot ---------------- */
+  let pendingBuild = false;
+  function setStatus(){
+    const fontOK = (document.fonts && document.fonts.check)
+      ? document.fonts.check('600 100px Fraunces') : null;
+    statusEl.textContent =
+      'native WebGL1 · three.js: none · WebGL: ' + (gl ? 'active' : 'fallback (HTML title)') +
+      ' · Fraunces: ' + (fontOK === null ? 'n/a' : (fontOK ? 'loaded' : 'NOT loaded')) +
+      ' · lang: ' + lang.toUpperCase() +
+      ' · baked into texture: ' + (baked ? ('[' + baked.lang.toUpperCase() + '] ' + baked.lines.join(' / ')) : 'none') +
+      ' · reduced-motion: ' + (REDUCED ? 'on (shader off)' : 'off') +
+      ' · hover: ' + (NO_HOVER ? 'none (touch)' : 'yes') +
+      ' · render: on-demand';
+  }
+
+  async function boot(){
+    // wait for the site's real fonts before baking the texture (with a hard cap)
+    let fontsDone = false;
+    if(document.fonts && document.fonts.load){
+      try{
+        await Promise.race([
+          Promise.all([document.fonts.load('600 1em Fraunces'), document.fonts.ready])
+            .then(() => { fontsDone = true; }),
+          new Promise(r => setTimeout(r, 3000))
+        ]);
+      }catch(e){}
+    }
+    // if the fonts settle after the cap, bake once more so metrics are exact
+    if(!fontsDone && document.fonts && document.fonts.ready){
+      document.fonts.ready.then(() => { if(gl) build(); });
+    }
+
+    const usable = !FORCE_FALLBACK && !REDUCED && initGL();
+    if(!usable){
+      gl = null;
+      canvas.style.display = 'none';
+      stage.classList.remove('gl-on');
+      baked = null;
+      setStatus();
+      return;
+    }
+
+    stage.classList.add('gl-on');
+    build();                       // also clears any pendingBuild from an early click
+    if(pendingBuild) build();
+
+    if(NO_HOVER){
+      // touch: displace only while the finger is down, so scrolling is untouched
+      stage.addEventListener('pointerdown', e => { point(e); }, { passive: true });
+      stage.addEventListener('pointermove', e => { if(e.pressure > 0 || e.buttons) point(e); }, { passive: true });
+      stage.addEventListener('pointerup', release, { passive: true });
+      stage.addEventListener('pointercancel', release, { passive: true });
+    } else {
+      stage.addEventListener('pointermove', e => { if(e.pointerType === 'mouse') point(e); }, { passive: true });
+      stage.addEventListener('pointerleave', release, { passive: true });
+    }
+
+    let rt = 0;
+    const onResize = () => {
+      clearTimeout(rt);
+      rt = setTimeout(() => { build(); }, 140);
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+    if('ResizeObserver' in window) new ResizeObserver(onResize).observe(stage);
+
+    setStatus();
+
+    // small debug surface: lets anyone confirm what is actually baked
+    window.__heroShader = {
+      get lang(){ return lang; },
+      get baked(){ return baked; },
+      setLang: setLang,
+      rebuild: function(){ build(); },
+      // paints the CURRENT texture layout with plain Canvas2D (no WebGL) into a
+      // visible canvas, so the shader output can be compared against it
+      mirror: function(){
+        const t = typeStyle(), rect = stage.getBoundingClientRect();
+        const blur = t.size * BLUR_FRAC;
+        const pad = Math.max(t.size * 0.34, blur * 2.6, 22);
+        const bx = { cssW: Math.round(rect.width), cssH: Math.round(rect.height),
+                     pad: pad, dpr: 2, planeW: rect.width + pad * 2, planeH: rect.height + pad * 2 };
+        const cv = document.createElement('canvas');
+        cv.id = 'mirror'; cv.width = Math.round(bx.planeW * 2); cv.height = Math.round(bx.planeH * 2);
+        cv.style.cssText = 'position:fixed;left:0;top:0;z-index:9999;background:#fff;' +
+                           'width:' + bx.planeW + 'px;height:' + bx.planeH + 'px';
+        drawContent(cv.getContext('2d'), t, bx, { mode: 'ink' });
+        document.body.appendChild(cv);
+        return cv.id;
+      }
+    };
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

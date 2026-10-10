@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LILA — Hero · Hi, I'm Lila</title>
+<meta name="description" content="An independent hero study: interactive typography rendered with a native WebGL shader.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/hero.css">
+</head>
+<!--
+  INDEPENDENT HERO PAGE — collage redesign (references: design references/hero).
+  · Own URL (hero.html); the original homepage (index.html) is untouched.
+  · No #intro element, so the torn-paper opening never runs on this page.
+  · The headline is fixed at "Hi, I'm Lila" + smiley in BOTH languages:
+    it carries no data-zh / data-zh-html attribute, so the site's bilingual
+    engine cannot overwrite it.
+  · The shader stage keeps the real <h1> in the DOM as accessible / fallback
+    text; the WebGL canvas overlays it only when the shader is live.
+  · Speech bubble = the "enter the site" CTA (link to index.html), text kept
+    in Chinese exactly as both target images show it.
+-->
+<body class="hero-page" data-page="hero">
+
+<div id="nav-root"></div>
+
+<main>
+  <section class="hero-scene">
+    <div class="scene-fit">
+      <a class="hero-bubble" href="index.html" lang="zh-CN">点此进入主站吧</a>
+      <div class="hero-copy">
+        <div class="hero-stage" id="stage" data-hero-shader>
+          <h1 class="hero-title" id="title">Hi, <br>I'm <br>Lila</h1>
+          <canvas id="hero-gl" aria-hidden="true"></canvas>
+        </div>
+        <p class="hero-sub" data-zh-html="我在 <b>内容、运营与研究</b> 的交汇处工作——<br>把证据变成故事，把故事变成增长。">content, operations and research<span class="smile" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17.4" fill="none" stroke="currentColor" stroke-width="2.6"/><circle cx="14" cy="16.6" r="1.9" fill="currentColor"/><circle cx="26" cy="16.6" r="1.9" fill="currentColor"/><path d="M13.2 24.4 C16 29 24 29 26.8 24.4" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="footer-root"></div>
+<script src="js/main.js"></script>
+<script src="js/hero-shader.js"></script>
+</body>
+</html>

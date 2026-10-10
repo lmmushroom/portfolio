@@ -1,0 +1,145 @@
+/* =========================================================
+   INDEPENDENT HERO PAGE — collage redesign (site/hero.html) ONLY
+   Reference-driven composition: painted grassland scene with the
+   berry-bonnet cat (baked illustration), HTML speech-bubble CTA,
+   shader headline + sub-line overlaid at reference positions.
+   Every rule is scoped to .hero-page so nothing here can
+   affect index.html or any other production page.
+   ========================================================= */
+
+.hero-page{background:#F7EEDA}
+
+/* ---------- scene frame ----------
+   The illustration is 16:9. The scene box keeps that aspect, sits at the
+   bottom of the viewport and letterboxes with the same cream above, so the
+   overlay positions (in % of the box) stay faithful to the reference at any
+   desktop viewport without cropping the baked art. */
+.hero-scene{
+  position:relative;z-index:1;
+  min-height:100svh;
+  display:flex;align-items:flex-end;
+  background:#F7EEDA;
+}
+.scene-fit{
+  position:relative;width:100%;aspect-ratio:16/9;
+  background:url('../assets/hero-scene.jpg') no-repeat bottom center / cover;
+}
+
+/* ---------- speech-bubble CTA (点此进入主站吧) ---------- */
+.hero-bubble{
+  position:absolute;left:36.5%;top:3%;
+  width:clamp(230px,20.5vw,330px);aspect-ratio:1.55;
+  background:#7E924A;
+  color:#F7F0DC;
+  display:flex;align-items:center;justify-content:center;
+  text-align:center;
+  font-weight:700;font-size:clamp(1.05rem,2.5vw,2.25rem);
+  letter-spacing:.04em;line-height:1.25;
+  border-radius:47% 53% 56% 44% / 62% 57% 43% 38%;
+  transform:rotate(-2deg);
+  transition:transform .25s ease;
+  z-index:3;
+}
+.hero-bubble:hover{transform:rotate(1deg) scale(1.03)}
+/* hand-drawn tail: two drips pointing down-right toward the cat */
+.hero-bubble::before{
+  content:"";position:absolute;right:20%;bottom:-15%;
+  width:15%;height:30%;
+  background:#7E924A;
+  border-radius:12% 12% 74% 26%;
+  transform:rotate(26deg);
+}
+.hero-bubble::after{
+  content:"";position:absolute;right:7%;bottom:-9%;
+  width:6.5%;height:18%;
+  background:#7E924A;
+  border-radius:60% 40% 62% 38%;
+  transform:rotate(42deg);
+}
+
+/* ---------- headline + sub-line ---------- */
+.hero-copy{position:absolute;left:11.6%;top:27%;z-index:2}
+.hero-stage{position:relative;width:max-content;max-width:100%}
+.hero-title{
+  margin:0;
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:clamp(3.4rem,10.6vw,10rem);
+  line-height:1.0;
+  letter-spacing:-.022em;
+  color:#261C15;
+  white-space:nowrap;
+}
+#hero-gl{
+  position:absolute;left:0;top:0;width:100%;height:100%;
+  pointer-events:none;display:none;
+}
+.gl-on #hero-gl{display:block}
+.gl-on .hero-title{opacity:0}
+
+/* line breaks inside the h1 are mobile-only (matches the mobile reference
+   stack "Hi, / I'm / Lila"); the shader rebuilds its texture accordingly */
+.hero-title br{display:none}
+
+/* (the smiley moved to the sub-line; see .hero-sub .smile below) */
+
+.hero-sub{
+  margin:1.1vw 0 0;
+  font-size:clamp(.95rem,1.6vw,1.5rem);
+  line-height:1.55;
+  color:#2B231A;
+  font-weight:500;
+}
+.hero-sub b{color:#1E1812;font-weight:700}
+/* preserved smiley element: lives at the end of the sub-line so it stays
+   with the headline block without covering the baked illustration */
+.hero-sub .smile{
+  display:inline-block;width:1.05em;height:1.05em;
+  vertical-align:-.16em;margin-left:.5em;
+  color:#261C15;
+}
+.hero-sub .smile svg{width:100%;height:100%;display:block;overflow:visible}
+html[lang="zh-CN"] .hero-sub{
+  font-family:var(--serif);
+  font-size:clamp(1rem,2.1vw,1.95rem);
+  line-height:1.6;
+  font-weight:600;
+}
+
+/* ---------- responsive: mobile stack per mobile-reference ---------- */
+@media(max-width:620px){
+  .hero-scene{min-height:100svh}
+  .scene-fit{
+    aspect-ratio:auto;height:100svh;
+    background-position:70% 100%;
+  }
+  /* cream pad on top so headline + sub-line stay on paper, art emerges below */
+  .scene-fit::before{
+    content:"";position:absolute;left:0;right:0;top:0;height:52%;
+    background:linear-gradient(#F7EEDA 80%,rgba(247,238,218,0));
+    pointer-events:none;
+  }
+  .hero-bubble{
+    left:auto;right:5%;top:auto;bottom:37%;
+    width:54vw;aspect-ratio:1.9;
+    font-size:clamp(1.05rem,5.4vw,1.5rem);
+  }
+  .hero-bubble::before{width:10%;height:34%;right:14%;bottom:-16%}
+  .hero-bubble::after{display:none}
+  .hero-copy{left:6.5%;right:6.5%;top:13%}
+  .hero-stage{width:auto}
+  .hero-title{
+    white-space:normal;
+    font-size:clamp(3.4rem,17vw,5rem);
+  }
+  .hero-title br{display:inline}
+  .hero-sub{margin-top:4.5vw;font-size:clamp(.9rem,3.7vw,1.05rem);max-width:none}
+  html[lang="zh-CN"] .hero-sub{font-size:clamp(.9rem,3.7vw,1.05rem)}
+}
+
+/* ---------- short viewports ----------
+   On aspect ratios wider than 16:9, cap the scene box height and let the
+   cover background crop symmetrically instead. */
+@media(min-width:621px){
+  .scene-fit{max-height:100svh}
+}
